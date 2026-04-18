@@ -23,4 +23,8 @@ interface UuidV7Interface
     public function timestamp(string $uuid, ?string $driver = null): int;
 
     public function datetime(string $uuid, ?string $driver = null): DateTimeImmutable;
+
+    public function toBinary(string $uuid, ?string $driver = null): string;
+
+    public function fromBinary(string $binary, ?int $timestampMs = null, ?int $shardId = null): UuidV7;
 }

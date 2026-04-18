@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace qs9000\thinkuuidv7;
 
+use DateTimeImmutable;
 use think\Manager;
 use think\facade\Config;
 
@@ -17,7 +18,7 @@ class UuidV7Manager extends Manager
         return $this->getConfig('driver', 'file');
     }
 
-    protected function getConfig(string $name, $default = null)
+    protected function getConfig(string $name, mixed $default = null): mixed
     {
         return Config::get('uuidv7.' . $name, $default);
     }
@@ -68,9 +69,19 @@ class UuidV7Manager extends Manager
         return $this->driver($driver)->timestamp($uuid);
     }
 
-    public function datetime(string $uuid, ?string $driver = null): \DateTimeImmutable
+    public function datetime(string $uuid, ?string $driver = null): DateTimeImmutable
     {
         return $this->driver($driver)->datetime($uuid);
+    }
+
+    public function toBinary(string $uuid, ?string $driver = null): string
+    {
+        return $this->driver($driver)->toBinary($uuid);
+    }
+
+    public function fromBinary(string $binary, ?int $timestampMs = null, ?int $shardId = null): UuidV7
+    {
+        return UuidV7::fromBinary($binary, $timestampMs, $shardId);
     }
 
     public function getShardId(): int

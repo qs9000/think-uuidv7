@@ -90,7 +90,7 @@ class UuidV7Generator implements UuidV7Interface
 
         $uuids = [];
         $currentTimestamp = null;
-        $redisSequenceBase = 0;
+        $redisSequenceBase = 0;  // Base sequence from Redis for current timestamp
         $lastSequence = 0;
         $retryCount = 0;
 
@@ -104,16 +104,16 @@ class UuidV7Generator implements UuidV7Interface
                     $currentTimestamp = $timestamp;
                     $this->localSequence = 0;
                     $retryCount = 0;  // Reset retry count on new timestamp
-                    $lastSequence = $this->getSequence($timestamp);
+                    $redisSequenceBase = $this->getSequence($timestamp);
 
                     // Handle Redis overflow
-                    if ($lastSequence === -1) {
+                    if ($redisSequenceBase === -1) {
                         $this->waitForNextMillisecond();
                         $currentTimestamp = $this->getCurrentTimestampMs();
-                        $lastSequence = $this->getSequence($currentTimestamp);
+                        $redisSequenceBase = $this->getSequence($currentTimestamp);
                         $this->localSequence = 0;
 
-                        if ($lastSequence === -1) {
+                        if ($redisSequenceBase === -1) {
                             $retryCount++;
                             if ($retryCount > 100) {
                                 throw new UuidV7Exception('UUIDv7 batch generation overflow: too many requests per millisecond');
@@ -121,20 +121,21 @@ class UuidV7Generator implements UuidV7Interface
                             continue;  // Retry with new timestamp
                         }
                     }
+                    $lastSequence = $redisSequenceBase;
                 } else {
                     $this->localSequence++;
 
                     // Local sequence overflow - get new sequence from Redis
                     if ($this->localSequence > self::MAX_LOCAL_SEQUENCE) {
                         if ($this->redisGenerator !== null) {
-                            $lastSequence = $this->redisGenerator->getSequence($currentTimestamp);
-                            if ($lastSequence === -1) {
+                            $redisSequenceBase = $this->redisGenerator->getSequence($currentTimestamp);
+                            if ($redisSequenceBase === -1) {
                                 $this->waitForNextMillisecond();
                                 $currentTimestamp = $this->getCurrentTimestampMs();
-                                $lastSequence = $this->getSequence($currentTimestamp);
+                                $redisSequenceBase = $this->getSequence($currentTimestamp);
                                 $this->localSequence = 0;
 
-                                if ($lastSequence === -1) {
+                                if ($redisSequenceBase === -1) {
                                     $retryCount++;
                                     if ($retryCount > 100) {
                                         throw new UuidV7Exception('UUIDv7 batch generation overflow: too many requests per millisecond');
@@ -145,9 +146,10 @@ class UuidV7Generator implements UuidV7Interface
                         } else {
                             $this->waitForNextMillisecond();
                             $currentTimestamp = $this->getCurrentTimestampMs();
-                            $lastSequence = 0;
+                            $redisSequenceBase = 0;
                             $this->localSequence = 0;
                         }
+                        $lastSequence = $redisSequenceBase;
                     } else {
                         // Use Redis sequence base + local sequence offset
                         $lastSequence = $redisSequenceBase + $this->localSequence;
@@ -155,7 +157,6 @@ class UuidV7Generator implements UuidV7Interface
                 }
 
                 $this->lastTimestamp = $currentTimestamp;
-                $redisSequenceBase = $lastSequence;
                 break;  // Success, exit retry loop
             }
 
@@ -172,6 +173,28 @@ class UuidV7Generator implements UuidV7Interface
         }
 
         return new UuidV7($uuid, $this->extractTimestamp($uuid), $this->extractShardId($uuid));
+    }
+
+    /**
+     * Convert UUID string to binary format
+     *
+     * @param string $uuid UUID string
+     * @param string|null $driver (unused, for interface compatibility)
+     * @return string 16-byte binary string
+     */
+    public function toBinary(string $uuid, ?string $driver = null): string
+    {
+        $uuidV7 = $this->parse($uuid);
+        if ($uuidV7 === null) {
+            throw new UuidV7Exception('Invalid UUIDv7 format: ' . $uuid);
+        }
+
+        return $uuidV7->toBinary();
+    }
+
+    public function fromBinary(string $binary, ?int $timestampMs = null, ?int $shardId = null): UuidV7
+    {
+        return UuidV7::fromBinary($binary, $timestampMs, $shardId);
     }
 
     public function validate(string $uuid, ?string $driver = null): bool
@@ -294,14 +317,6 @@ class UuidV7Generator implements UuidV7Interface
         return $bytes;
     }
 
-    /**
-     * Flush the random cache
-     */
-    protected function flushRandomCache(): void
-    {
-        $this->randomCache = '';
-        $this->randomCacheOffset = 0;
-    }
 
     /**
      * Extract shard ID from UUID
@@ -333,7 +348,8 @@ class UuidV7Generator implements UuidV7Interface
         $seq_high = $rand_a & 0x0F;  // 4 bits from rand_a low
 
         // rand_b from g3: stored as (rand_b >> 2), need to shift back
-        $g3 = hexdec(substr($hex, 13, 4));
+        // g3 starts at index 12 (after g1[0-7] + g2[8-11])
+        $g3 = hexdec(substr($hex, 12, 4));
         $rand_b_shifted = $g3 & 0x0FFF;  // rand_b >> 2
         $rand_b = $rand_b_shifted << 2;  // restore rand_b
         $seq_low = ($rand_b >> 6) & 0xFF;  // 8 bits from rand_b high
@@ -355,12 +371,13 @@ class UuidV7Generator implements UuidV7Interface
     protected function waitForNextMillisecond(): void
     {
         $current = $this->getCurrentTimestampMs();
-        $lastTs = $this->lastTimestamp ?? ($current - 1);
+        $lastTs = $this->lastTimestamp ?? $current;
 
         if ($lastTs >= $current) {
-            // 等待直到下一个毫秒（最多 2ms，避免时钟回拨时长时间阻塞）
-            $sleepUs = min(2000, ($lastTs - $current + 1) * 1000);
-            usleep((int) $sleepUs);
+            // Wait until next millisecond (max 2ms to avoid long blocking on clock rollback)
+            $targetMs = $lastTs + 1;
+            $sleepMs = min(2, max(0, $targetMs - $current));
+            usleep((int) ($sleepMs * 1000));
         }
     }
 }

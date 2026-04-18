@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace qs9000\thinkuuidv7\tests;
 
 use PHPUnit\Framework\TestCase;
+use qs9000\thinkuuidv7\Exception\UuidV7Exception;
 use qs9000\thinkuuidv7\UuidV7;
 use qs9000\thinkuuidv7\UuidV7Generator;
 
@@ -93,7 +94,54 @@ class UuidV7ManagerTest extends TestCase
         $generator = new UuidV7Generator(99);
         $uuid = $generator->generate();
         $parsed = $generator->parse($uuid);
-        
+
         $this->assertSame(99, $parsed->getShardId());
+    }
+
+    public function testToBinaryReturnsBinaryString(): void
+    {
+        $uuid = $this->generator->generate();
+        $binary = $this->generator->toBinary($uuid);
+
+        $this->assertIsString($binary);
+        $this->assertSame(16, strlen($binary));
+    }
+
+    public function testToBinaryIsReversible(): void
+    {
+        $uuid = $this->generator->generate();
+        $binary = $this->generator->toBinary($uuid);
+
+        $uuidV7 = UuidV7::fromBinary($binary);
+        $this->assertSame(strtolower($uuid), $uuidV7->getUuid());
+    }
+
+    public function testToBinaryThrowsForInvalidUuid(): void
+    {
+        $this->expectException(UuidV7Exception::class);
+        $this->generator->toBinary('invalid-uuid');
+    }
+
+    public function testFromBinaryReturnsUuidV7(): void
+    {
+        $uuid = $this->generator->generate();
+        $binary = $this->generator->toBinary($uuid);
+
+        $uuidV7 = $this->generator->fromBinary($binary);
+        $this->assertInstanceOf(UuidV7::class, $uuidV7);
+        $this->assertSame(strtolower($uuid), $uuidV7->getUuid());
+    }
+
+    public function testFromBinaryWithTimestampAndShardId(): void
+    {
+        $timestamp = 1776503423651;
+        $shardId = 99;
+        $generator = new UuidV7Generator($shardId);
+        $uuid = $generator->generate();
+        $binary = $generator->toBinary($uuid);
+
+        $uuidV7 = $generator->fromBinary($binary, $timestamp, $shardId);
+        $this->assertSame($timestamp, $uuidV7->getTimestampMs());
+        $this->assertSame($shardId, $uuidV7->getShardId());
     }
 }

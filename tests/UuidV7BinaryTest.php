@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace qs9000\thinkuuidv7\tests;
 
 use PHPUnit\Framework\TestCase;
+use qs9000\thinkuuidv7\Exception\UuidV7Exception;
 use qs9000\thinkuuidv7\UuidV7;
 use qs9000\thinkuuidv7\UuidV7Generator;
 
@@ -83,7 +84,7 @@ class UuidV7BinaryTest extends TestCase
 
     public function testFromBinaryThrowsOnInvalidLength(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(UuidV7Exception::class);
         $this->expectExceptionMessage('Binary UUID must be exactly 16 bytes');
 
         UuidV7::fromBinary('short');
@@ -91,7 +92,7 @@ class UuidV7BinaryTest extends TestCase
 
     public function testFromBinaryThrowsOnTooLong(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(UuidV7Exception::class);
         $this->expectExceptionMessage('Binary UUID must be exactly 16 bytes');
 
         UuidV7::fromBinary('12345678901234567'); // 17 bytes

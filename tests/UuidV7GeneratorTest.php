@@ -413,8 +413,8 @@ class UuidV7GeneratorTest extends TestCase
             $g2 = hexdec(substr($hex, 8, 4));
             $rand_a = $g2 & 0x0FFF;
 
-            // Extract rand_b high bits from g3
-            $g3 = hexdec(substr($hex, 13, 4));
+            // Extract rand_b high bits from g3 (starts at index 12)
+            $g3 = hexdec(substr($hex, 12, 4));
             $rand_b_shifted = $g3 & 0x0FFF;
             $rand_b = $rand_b_shifted << 2;
 

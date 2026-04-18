@@ -15,6 +15,8 @@ use think\Facade;
  * @method static bool validate(string $uuid, ?string $driver = null)
  * @method static int timestamp(string $uuid, ?string $driver = null)
  * @method static \DateTimeImmutable datetime(string $uuid, ?string $driver = null)
+ * @method static string toBinary(string $uuid, ?string $driver = null)
+ * @method static UuidV7 fromBinary(string $binary, ?int $timestampMs = null, ?int $shardId = null)
  */
 class UuidV7Facade extends Facade
 {

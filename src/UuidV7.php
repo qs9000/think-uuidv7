@@ -5,6 +5,7 @@ namespace qs9000\thinkuuidv7;
 
 use DateTimeImmutable;
 use JsonSerializable;
+use qs9000\thinkuuidv7\Exception\UuidV7Exception;
 
 /**
  * UUIDv7 Value Object
@@ -18,16 +19,16 @@ class UuidV7 implements JsonSerializable
     public function __construct(string $uuid, int $timestampMs, ?int $shardId = null)
     {
         if (empty($uuid)) {
-            throw new \InvalidArgumentException('UUID cannot be empty');
+            throw new UuidV7Exception('UUID cannot be empty');
         }
         if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $uuid)) {
-            throw new \InvalidArgumentException('Invalid UUID format: ' . $uuid);
+            throw new UuidV7Exception('Invalid UUID format: ' . $uuid);
         }
         if ($timestampMs < 0) {
-            throw new \InvalidArgumentException('Timestamp must be non-negative');
+            throw new UuidV7Exception('Timestamp must be non-negative');
         }
         if ($shardId !== null && ($shardId < 0 || $shardId > 255)) {
-            throw new \InvalidArgumentException('Shard ID must be between 0 and 255');
+            throw new UuidV7Exception('Shard ID must be between 0 and 255');
         }
 
         $this->uuid = strtolower($uuid);
@@ -39,12 +40,12 @@ class UuidV7 implements JsonSerializable
      * Create UuidV7 from UUID string with auto-extracted timestamp and shardId
      * This is the preferred factory method when you only have the UUID string
      *
-     * @throws \InvalidArgumentException If UUID format is invalid or version/variant bits are incorrect
+     * @throws UuidV7Exception If UUID format is invalid or version/variant bits are incorrect
      */
     public static function fromUuid(string $uuid): self
     {
         if (!preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $uuid)) {
-            throw new \InvalidArgumentException('Invalid UUID format: ' . $uuid);
+            throw new UuidV7Exception('Invalid UUID format: ' . $uuid);
         }
 
         $hex = str_replace('-', '', $uuid);
@@ -52,13 +53,13 @@ class UuidV7 implements JsonSerializable
         // Validate version (must be 7)
         $version = hexdec($hex[8]);
         if ($version !== 7) {
-            throw new \InvalidArgumentException('UUID version must be 7, got: ' . $version);
+            throw new UuidV7Exception('UUID version must be 7, got: ' . $version);
         }
 
         // Validate variant (must be 8, 9, a, or b)
         $variant = hexdec($hex[12]);
         if ($variant < 8 || $variant > 11) {
-            throw new \InvalidArgumentException('UUID variant must be 8-b, got: ' . $variant);
+            throw new UuidV7Exception('UUID variant must be 8-b, got: ' . $variant);
         }
 
         // Extract timestamp
@@ -120,7 +121,7 @@ class UuidV7 implements JsonSerializable
     public static function fromBinary(string $binary, ?int $timestampMs = null, ?int $shardId = null): self
     {
         if (strlen($binary) !== 16) {
-            throw new \InvalidArgumentException('Binary UUID must be exactly 16 bytes');
+            throw new UuidV7Exception('Binary UUID must be exactly 16 bytes');
         }
 
         $hex = bin2hex($binary);

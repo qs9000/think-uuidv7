@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace qs9000\thinkuuidv7\tests;
 
 use PHPUnit\Framework\TestCase;
+use qs9000\thinkuuidv7\Exception\UuidV7Exception;
 use qs9000\thinkuuidv7\UuidV7;
 
 class UuidV7Test extends TestCase
@@ -33,33 +34,33 @@ class UuidV7Test extends TestCase
 
     public function testConstructorThrowsOnEmptyUuid(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(UuidV7Exception::class);
         $this->expectExceptionMessage('UUID cannot be empty');
-        
+
         new UuidV7('', 1713456789000);
     }
 
     public function testConstructorThrowsOnInvalidFormat(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(UuidV7Exception::class);
         $this->expectExceptionMessage('Invalid UUID format');
-        
+
         new UuidV7('not-a-valid-uuid', 1713456789000);
     }
 
     public function testConstructorThrowsOnNegativeTimestamp(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(UuidV7Exception::class);
         $this->expectExceptionMessage('Timestamp must be non-negative');
-        
+
         new UuidV7('0191a51a-b2c3-7d89-0123-456789abcdef', -1);
     }
 
     public function testConstructorThrowsOnInvalidShardId(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(UuidV7Exception::class);
         $this->expectExceptionMessage('Shard ID must be between 0 and 255');
-        
+
         new UuidV7('0191a51a-b2c3-7d89-0123-456789abcdef', 1713456789000, 256);
     }
 
@@ -157,7 +158,7 @@ class UuidV7Test extends TestCase
 
     public function testFromUuidThrowsOnInvalidFormat(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(UuidV7Exception::class);
         $this->expectExceptionMessage('Invalid UUID format');
 
         UuidV7::fromUuid('not-a-uuid');
@@ -165,7 +166,7 @@ class UuidV7Test extends TestCase
 
     public function testFromUuidThrowsOnWrongVersion(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(UuidV7Exception::class);
         $this->expectExceptionMessage('UUID version must be 7');
 
         // Version 1 UUID: '1' at position 8 instead of '7'
@@ -174,7 +175,7 @@ class UuidV7Test extends TestCase
 
     public function testFromUuidThrowsOnWrongVariant(): void
     {
-        $this->expectException(\InvalidArgumentException::class);
+        $this->expectException(UuidV7Exception::class);
         $this->expectExceptionMessage('UUID variant must be 8-b');
 
         // Variant 0: '0' at position 12 instead of '8-b'

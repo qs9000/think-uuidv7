@@ -74,6 +74,12 @@ $timestamp = UuidV7Facade::timestamp($uuid);
 
 // 转换为 DateTimeImmutable
 $datetime = UuidV7Facade::datetime($uuid);
+
+// UUID 字符串转二进制
+$binary = UuidV7Facade::toBinary($uuid);
+
+// 二进制转 UuidV7 对象
+$uuidV7 = UuidV7Facade::fromBinary($binary, $timestampMs, $shardId);
 ```
 
 ### 服务方式
@@ -94,13 +100,19 @@ $uuidObj = app('uuidv7')->parse($uuid);
 // 动态设置分片 ID
 $generator = app('uuidv7')->withShardId(42);
 $uuid = $generator->generate();
+
+// UUID 转二进制
+$binary = app('uuidv7')->toBinary($uuid);
+
+// 二进制转 UuidV7
+$uuidV7 = app('uuidv7')->fromBinary($binary);
 ```
 
 ## UUIDv7 格式
 
 ```
 xxxxxxxx-xxxx-7xxx-yxxx-xxxxxxxxxxxx
-|________| |____| |____| |__________|
+|||________| |____| |____| |__________|
   timestamp  ver  variant   random
  (48 bits)   (4)   (2+14)   (62 bits)
 ```
@@ -111,12 +123,16 @@ xxxxxxxx-xxxx-7xxx-yxxx-xxxxxxxxxxxx
 |------|------|------|
 | timestamp | 48bit | 毫秒级时间戳（自 Unix 纪元） |
 | version | 4bit | 版本号，固定为 7 |
-| shard_id | 8bit | 分片 ID，0-255 |
-| sequence | 12bit | 毫秒内序列号 |
-| rand_a | 4bit | 随机数（补足 rand_a） |
+| rand_a | 12bit | shard_id(8bit高) + seq_high(4bit低) |
+| sequence | 40bit | 毫秒内序列号（Redis支持40bit，本地12bit） |
 | variant | 2bit | 变种位，固定为 10 |
-| rand_b | 14bit | 随机数 |
+| rand_b | 14bit | seq_low(8bit) + random(6bit) |
 | rand_c | 48bit | 随机数 |
+
+**说明**：
+- `shard_id` 存储在 rand_a 高 8 位，支持 256 个节点
+- `sequence` 编码在 rand_a + rand_b 中，本地同毫秒可生成 4096 个 ID
+- 使用 Redis 时，全局序列号支持 2^40 级别
 
 ### 时间戳提取
 
@@ -145,13 +161,17 @@ $uuid = UuidV7Facade::generate();
 节省 55% 存储空间（36 字节 → 16 字节）：
 
 ```php
+// 方式一：通过 Facade
+$binary = UuidV7Facade::toBinary($uuid);
+$uuidV7 = UuidV7Facade::fromBinary($binary);
+
+// 方式二：通过 UuidV7 对象
 $uuidObj = UuidV7Facade::make();
+$binary = $uuidObj->toBinary();
 
-// 转为二进制
-$binary = $uuidObj->toBinary();  // 16 字节
-
-// 从二进制恢复
-$restored = \qs9000\thinkuuidv7\UuidV7::fromBinary($binary);
+// 方式三：从外部 UUID 创建
+$uuidV7 = UuidV7::fromUuid($uuid);
+$binary = $uuidV7->toBinary();
 ```
 
 ### MySQL 示例
@@ -163,8 +183,11 @@ CREATE TABLE orders (
     created_at DATETIME
 );
 
--- 插入
+-- 插入（使用 UUID 字符串）
 INSERT INTO orders (id, created_at) VALUES (UNHEX(REPLACE('0191a51a-b2c3-7d89-0123-456789abcdef', '-', '')), NOW());
+
+-- 插入（使用二进制）
+INSERT INTO orders (id, created_at) VALUES (0x0191a51ab2c37d890123456789abcdef, NOW());
 
 -- 查询
 SELECT HEX(id) AS uuid FROM orders;
@@ -241,7 +264,7 @@ $uuidObj->getDatetime();       // DateTimeImmutable
 $uuidObj->getShardId();        // 42
 
 // 转为二进制
-$uuidObj->toBinary();          // "\x01\x91..."
+$uuidObj->toBinary();          // "\x01\x91..." (16 字节)
 
 // 比较
 $uuidObj->compareTo($other);  // -1, 0, or 1
@@ -253,6 +276,22 @@ json_encode($uuidObj);         // '"0191a51a-b2c3-7d89-0123-456789abcdef"'
 
 // 字符串转换
 (string) $uuidObj;             // '0191a51a-b2c3-7d89-0123-456789abcdef'
+```
+
+### 静态工厂方法
+
+```php
+// 从 UUID 字符串创建（自动提取时间戳和分片ID）
+$uuidV7 = UuidV7::fromUuid('0191a51a-b2c3-7d89-0123-456789abcdef');
+
+// 从二进制创建
+$uuidV7 = UuidV7::fromBinary($binary);
+
+// 从二进制创建（提供时间戳和分片ID加速解析）
+$uuidV7 = UuidV7::fromBinary($binary, $timestampMs, $shardId);
+
+// 获取二进制长度常量
+UuidV7::BINARY_LENGTH();  // 16
 ```
 
 ## 依赖
