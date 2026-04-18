@@ -1,0 +1,22 @@
+# Composer
+/vendor/
+composer.phar
+
+# PHPUnit
+/.phpunit.cache/
+/phpunit.xml.bak
+
+# IDE
+/.idea/
+/.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project specific
+/example/
+/runtime/
+
