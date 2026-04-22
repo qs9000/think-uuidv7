@@ -27,18 +27,11 @@
         }
     },
     "extra": {
-        "think-config": {
-            "uuidv7": "src/config/uuidv7.php"
+        "think": {
+            "config": {
+                "uuidv7": "src/config/uuidv7.php"
+            }
         }
-    },
-    "scripts": {
-        "post-install-cmd": [
-            "php think clear",
-            "echo 'UUIDv7 config installed to config/uuidv7.php'"
-        ],
-        "post-update-cmd": [
-            "php think clear"
-        ]
     },
     "minimum-stability": "dev",
     "prefer-stable": true,

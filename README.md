@@ -5,6 +5,7 @@
 ## 特性
 
 - **RFC 9562 兼容** - 严格遵循 UUIDv7 标准
+- **自动安装** - Composer 安装后自动配置，无需手动复制文件
 - **二进制存储** - 16 字节二进制格式，节省 55% 存储空间
 - **分片支持** - 内置 shard_id (0-255)，支持 256 个节点
 - **分布式序列号** - Redis Lua 脚本保证原子性
@@ -18,11 +19,15 @@
 composer require qs9000/think-uuidv7
 ```
 
+**安装后自动完成：**
+- 配置文件复制到 `config/uuidv7.php`
+- 服务自动注册
+
 ## 快速开始
 
-### 1. 注册服务
+### 1. 注册服务（可选）
 
-在 `application/provider.php` 中注册服务：
+如果自动注册失败，在 `application/provider.php` 中手动注册：
 
 ```php
 <?php
@@ -33,17 +38,17 @@ return [
 
 ### 2. 配置
 
-在 `config/uuidv7.php` 中配置（或使用环境变量）：
+配置文件已自动生成在 `config/uuidv7.php`：
 
 ```php
 <?php
 return [
     // 缓存驱动 (对应 config/cache.php 中的 stores)
     'driver' => env('UUIDV7_DRIVER', 'file'),
-    
+
     // 分片 ID (0-255)，每个服务器设置唯一值
     'shard_id' => (int) env('UUIDV7_SHARD_ID', 0),
-    
+
     // Redis 序列号 key 前缀
     'key_prefix' => env('UUIDV7_KEY_PREFIX', 'uuidv7:seq'),
 ];
@@ -176,11 +181,8 @@ $timestamp = Uuidv7::timestamp($uuid);  // 1776503423651
 每个服务器设置唯一的 `shard_id`：
 
 ```php
-// 服务器 A
+// .env
 UUIDV7_SHARD_ID=0
-
-// 服务器 B
-UUIDV7_SHARD_ID=1
 ```
 
 ### Redis 配置
@@ -198,10 +200,8 @@ UUIDV7_SHARD_ID=1
 ```
 
 ```php
-// config/uuidv7.php
-return [
-    'driver' => 'redis',  // 使用 Redis 驱动
-];
+// .env
+UUIDV7_DRIVER=redis
 ```
 
 ## 性能特性
